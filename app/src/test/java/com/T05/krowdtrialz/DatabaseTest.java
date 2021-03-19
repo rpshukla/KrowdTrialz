@@ -11,6 +11,7 @@ import com.T05.krowdtrialz.model.experiment.MeasurementExperiment;
 import com.T05.krowdtrialz.model.user.User;
 import com.T05.krowdtrialz.util.Database;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
 
 import org.junit.Before;
@@ -52,7 +53,7 @@ public class DatabaseTest {
         return experiment;
     }
 
-    @Before
+    @BeforeEach
     void setup() {
         final SharedPreferences sharedPreferences = Mockito.mock(SharedPreferences.class);
         Database.initializeInstance(sharedPreferences, new Database.InitializeDatabaseCallback() {
