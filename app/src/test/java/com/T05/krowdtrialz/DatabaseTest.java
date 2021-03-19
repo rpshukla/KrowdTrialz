@@ -12,7 +12,6 @@ import com.T05.krowdtrialz.model.user.User;
 import com.T05.krowdtrialz.util.Database;
 
 import org.mockito.Mockito;
-import org.mockito.Mockito.*;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
