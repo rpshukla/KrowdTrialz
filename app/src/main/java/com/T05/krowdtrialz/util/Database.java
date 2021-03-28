@@ -6,8 +6,6 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
 
 import com.T05.krowdtrialz.model.experiment.BinomialExperiment;
 import com.T05.krowdtrialz.model.experiment.CountExperiment;
@@ -583,10 +581,8 @@ public class Database {
      *  Furmaan Sekhon and Jacques Leong-Sit
      * @param tags
      *  This is the tags to search for
-     * @return
-     *  A LiveData object containing a list of experiments with the given tags.
      */
-    public LiveData<ArrayList<Experiment>> getExperimentsByTags (ArrayList<String> tags) {
+    public void getExperimentsByTags (ArrayList<String> tags, QueryExperimentsCallback callback) {
 
         for (int i = 0; i < tags.size(); i++) {
             tags.set(i, tags.get(i).toLowerCase());
@@ -594,17 +590,16 @@ public class Database {
 
         db = FirebaseFirestore.getInstance();
 
-        MutableLiveData<ArrayList<Experiment>> liveData = new MutableLiveData<>();
-        liveData.setValue(new ArrayList<>());
+        Set<Experiment> resultSet = new HashSet<>();
 
         CollectionReference allExperimentsCollectionReference = db.collection("AllExperiments");
 
         for (String tag: tags) {
-            allExperimentsCollectionReference.whereArrayContains("tags", tag).addSnapshotListener(new EventListener<QuerySnapshot>() {
+            allExperimentsCollectionReference.whereArrayContains("tags", tag).get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                 @Override
-                public void onEvent(@Nullable QuerySnapshot value, @Nullable FirebaseFirestoreException error) {
+                public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
                     Set<Experiment> matchingExperiments = new HashSet<>();
-                    for (QueryDocumentSnapshot document : value) {
+                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         if (document.get("type").toString().equals("Binomial")) {
                             BinomialExperiment experiment = document.toObject(BinomialExperiment.class);
                             matchingExperiments.add(experiment);
@@ -620,26 +615,28 @@ public class Database {
                         }
                     }
 
-                    // Intersect the new results with previous results
-                    Set<Experiment> resultSet = new HashSet<>();
-                    resultSet.addAll(liveData.getValue());
                     if (resultSet.isEmpty()) {
                         resultSet.addAll(matchingExperiments);
                     } else {
                         resultSet.retainAll(matchingExperiments);
                     }
 
-                    // Convert to ArrayList
-                    ArrayList<Experiment> newData = new ArrayList<>();
-                    newData.addAll(resultSet);
+                    if (matchingExperiments.size() > 0) {
+                        ArrayList<Experiment> output = new ArrayList<>();
+                        output.addAll(resultSet);
+                        callback.onSuccess(output);
+                    } else {
+                        callback.onFailure();
+                    }
 
-                    // Notify listeners
-                    liveData.setValue(newData);
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    callback.onFailure();
                 }
             });
         }
-
-        return liveData;
     }// end getExperimentsByTags
 
     /**

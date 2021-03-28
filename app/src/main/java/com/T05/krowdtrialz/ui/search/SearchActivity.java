@@ -1,8 +1,6 @@
 package com.T05.krowdtrialz.ui.search;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.Observer;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -28,7 +26,7 @@ import java.util.Arrays;
  *
  * @todo need to update when user re enters the activity, since data may have beed deleted
  */
-public class SearchActivity extends AppCompatActivity implements SearchView.OnQueryTextListener{
+public class SearchActivity extends Activity implements SearchView.OnQueryTextListener{
 
     private Database db;
     private ArrayAdapter<Experiment> experimentAdapter;
@@ -88,13 +86,12 @@ public class SearchActivity extends AppCompatActivity implements SearchView.OnQu
         Log.e(TAG, "Query: " + searchString);
         ArrayList<String> tags = new ArrayList<>(Arrays.asList(searchString.split("[^A-Za-z1-9]")));
 
-        db.getExperimentsByTags(tags).observe(this, new Observer<ArrayList<Experiment>>() {
+        db.getExperimentsByTags(tags, new Database.QueryExperimentsCallback() {
             @Override
-            public void onChanged(ArrayList<Experiment> experiments) {
+            public void onSuccess(ArrayList<Experiment> experiments) {
                 Log.d(TAG, "Got search results" + experiments.toString());
                 experimentAdapter.clear();
                 experimentAdapter.addAll(experiments);
-                experimentAdapter.notifyDataSetChanged();
 
                 /*
                  * pass the clicked experiment to the Experiment details page
@@ -112,8 +109,16 @@ public class SearchActivity extends AppCompatActivity implements SearchView.OnQu
 
                         i.putExtra("experiment", experimentID);
                         startActivity(i);
+
+
+
                     }
                 });
+            }
+
+            @Override
+            public void onFailure() {
+                Log.e(TAG, "Error Searching Database");
             }
         });
     }
