@@ -1,9 +1,11 @@
 package com.T05.krowdtrialz;
 
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.T05.krowdtrialz.model.experiment.BinomialExperiment;
@@ -17,14 +19,13 @@ import com.T05.krowdtrialz.model.user.User;
 import com.T05.krowdtrialz.util.Database;
 import com.google.firebase.firestore.ListenerRegistration;
 
-import org.apache.commons.math3.analysis.function.Exp;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,6 +37,18 @@ import static org.junit.Assert.fail;
 
 @RunWith(AndroidJUnit4.class)
 public class DatabaseTest {
+    // {{{
+    // This rule fixes error messages such as:
+    //   "java.lang.IllegalStateException: Cannot invoke observeForever on a background thread"
+    //
+    // From user "Algar" on https://stackoverflow.com
+    // Link to user profile: https://stackoverflow.com/users/3499145/algar
+    // Link to question: https://stackoverflow.com/q/52274924
+    // Link to answer: https://stackoverflow.com/a/52274925
+    @Rule
+    public InstantTaskExecutorRule instantTaskExecutorRule = new InstantTaskExecutorRule();
+    // }}}
+
     private Database db;
 
     // Time to sleep (in ms) while waiting for firestore to update.
@@ -259,26 +272,6 @@ public class DatabaseTest {
     }
 
     @Test
-    public void testSmokeTestGetExperimentsByTags () {
-        ArrayList<String> tags = new ArrayList<>();
-        tags.add("bob");
-        db.getExperimentsByTags(tags, new Database.QueryExperimentsCallback() {
-            @Override
-            public void onSuccess(ArrayList<Experiment> experiments) {
-                for(Experiment experiment : experiments){
-                    Log.d("test Tags",experiment.getId());
-                }
-
-            }
-
-            @Override
-            public void onFailure() {
-
-            }
-        });
-    }
-
-    @Test
     public void testGetUserById() throws InterruptedException {
         String id = db.getDeviceUser().getId();
         registration = db.getUserById(id, new Database.GetUserCallback() {
@@ -413,23 +406,20 @@ public class DatabaseTest {
         tags.add(experiment.getFailUnit());
 
         ArrayList<Experiment> returnedExperiments = new ArrayList<>();
-        db.getExperimentsByTags(tags,
-                new Database.QueryExperimentsCallback() {
-                    @Override
-                    public void onSuccess(ArrayList<Experiment> experiments) {
-                        experiments.forEach(
-                                e -> returnedExperiments.add(e)
-                        );
-                    }
-
-                    @Override
-                    public void onFailure() {
-                        fail("onFailure called");
-                    }
-                });
+        LiveData liveData = db.getExperimentsByTags(tags);
+        Observer observer = new Observer<ArrayList<Experiment>>() {
+            @Override
+            public void onChanged(ArrayList<Experiment> experiments) {
+                experiments.forEach(
+                        e -> returnedExperiments.add(e)
+                );
+            }
+        };
+        liveData.observeForever(observer);
         Thread.sleep(WAIT_TIME_MS);
 
         assertTrue(returnedExperiments.contains(experiment));
+        liveData.removeObserver(observer);
     }
 
     @Test
